@@ -271,11 +271,9 @@ int getNextToken()
                 break;
             case 4:
                 tk = addTk(CT_INT);
-                //tk->i = atoi(createString(pStartCh, pCrtCh));
                 tk -> i = strtol(pStartCh, &pCrtCh, 0);
                 return tk->code;
             case 5:
-                printf("state5\n");
                 if(isdigit(ch) && ch != '8' && ch !='9') pCrtCh++;
                 else if (ch == '8' || ch == '9'){
                     pCrtCh++;
@@ -324,6 +322,27 @@ int getNextToken()
                 }
                 else tkerr(addTk(END),"invalid character ");
                 break;
+            case 12:
+                if(isdigit(ch)){
+                    pCrtCh++;
+                    state = 13;
+                }
+                else tkerr(addTk(END),"invalid character. Expected digit.");
+                break;
+            case 13:
+                if(isdigit(ch)){
+                    pCrtCh++;
+                }
+                else if(ch == 'e' || ch == 'E'){
+                    pCrtCh++;
+                    state = 9;
+                }
+                else state = 14;
+                break;
+            case 14:
+                tk = addTk(CT_REAL);
+                tk -> r = atof(createString(pStartCh, pCrtCh));
+                return tk->code;
             case 15:
                 pStartCh = pCrtCh;
                 if(ch == '\\'){
@@ -619,6 +638,8 @@ void tempTestPrint(){
         printf("%ld ", temp->i);
     else if(temp->code == 15)
         printf("%c %ld ", temp->i, temp->i);
+    else if(temp->code == 14)
+        printf("%f", temp->r);
     printf("%d\n", temp->line);
     temp = temp->next;
     }
