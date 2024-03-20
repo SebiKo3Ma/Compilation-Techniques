@@ -12,6 +12,8 @@ enum{ID, END, BREAK, CHAR, DOUBLE, ELSE, FOR, IF, INT, RETURN, STRUCT, VOID, WHI
     AND, OR, NOT, NOTEQ, ASSIGN, EQUAL, LESS, LESSEQ, GREATER, GREATEREQ}; // tokens codes
 
 char *hex = "0123456789abcdefABCDEF";
+char *esc = "abfnrtv'?\"\\0";
+int esc_codes[12] = {7, 8, 12, 10, 13, 9, 11, 39, 63, 34, 92, 0};
 
 typedef struct _Token{
     int code; // code (name)
@@ -110,6 +112,7 @@ int getNextToken()
     char ch;
     const char *pStartCh;
     Token *tk;
+    int escape = 0;
 
     while(1){ // infinite loop
         ch=*pCrtCh;
@@ -321,6 +324,43 @@ int getNextToken()
                 }
                 else tkerr(addTk(END),"invalid character ");
                 break;
+            case 15:
+                pStartCh = pCrtCh;
+                if(ch == '\\'){
+                    pCrtCh++;
+                    state = 17;
+                }
+                else if(ch != '\''){
+                    pCrtCh++;
+                    state = 16;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 16:
+                if(ch == '\''){
+                    pCrtCh++;
+                    state = 18;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 17:
+                pStartCh = pCrtCh;
+                escape = 1;
+                if(strchr(esc, ch)){
+                    pCrtCh++;
+                    state = 16;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 18:
+                tk = addTk(CT_CHAR);
+                if(escape == 0)
+                    tk -> i = pStartCh[0];
+                else{
+                    tk->i = esc_codes[strchr(esc, pStartCh[0]) - esc];
+                    escape = 0;
+                }
+                return tk->code;
             case 23:
                 addTk(COMMA);
                 return COMMA;
@@ -533,6 +573,8 @@ void tempTestPrint(){
     if(temp->code == 0)
         printf("%s ", temp->text);
     else if(temp->code == 13)
+        printf("%ld ", temp->i);
+    else if(temp->code == 15)
         printf("%ld ", temp->i);
     printf("%d\n", temp->line);
     temp = temp->next;
