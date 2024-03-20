@@ -10,3 +10,4 @@ void main()
 	c=get_c();
 	put_i(isdigit(c));
 }
+

@@ -150,7 +150,7 @@ int getNextToken()
                     pCrtCh++;
                     state = 15;
                 }
-                else if(ch == '"'){
+                else if(ch == '\"'){
                     pStartCh = pCrtCh;
                     pCrtCh++;
                     state = 19;
@@ -361,6 +361,49 @@ int getNextToken()
                     escape = 0;
                 }
                 return tk->code;
+            case 19:
+                pStartCh = pCrtCh;
+                if(ch == '\\'){
+                    pCrtCh++;
+                    state = 21;
+                }
+                else if(ch != '\''){
+                    if(ch == '\n'){
+                        line++;
+                    }
+                    pCrtCh++;
+                    state = 20;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 20:
+                if(ch == '\"'){
+                    state = 22;
+                }
+                else if(ch != '\\'){
+                    if(ch == '\n'){
+                        line++;
+                    }
+                    pCrtCh++;
+                }
+                else if(ch == '\\'){
+                    pCrtCh++;
+                    state = 21;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 21:
+                if(strchr(esc, ch)){
+                    pCrtCh++;
+                    state = 20;
+                }
+                else tkerr(addTk(END),"invalid character ");
+                break;
+            case 22:
+                tk = addTk(CT_STRING);
+                tk -> text = createString(pStartCh, pCrtCh);
+                pCrtCh++;
+                return tk->code;
             case 23:
                 addTk(COMMA);
                 return COMMA;
@@ -570,12 +613,12 @@ void tempTestPrint(){
     temp = tokens;
     while(temp!=NULL){
     printf("%s ", enum_names[temp->code]);
-    if(temp->code == 0)
+    if(temp->code == 0 || temp->code == 16)
         printf("%s ", temp->text);
     else if(temp->code == 13)
         printf("%ld ", temp->i);
     else if(temp->code == 15)
-        printf("%ld ", temp->i);
+        printf("%c %ld ", temp->i, temp->i);
     printf("%d\n", temp->line);
     temp = temp->next;
     }
