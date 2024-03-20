@@ -538,6 +538,7 @@ int getNextToken()
                 if(ch == '/'){
                     pCrtCh++;
                     state = 53;
+                    line++;
                 }
                 else if(ch == '*'){
                     pCrtCh++;
@@ -559,6 +560,9 @@ int getNextToken()
                 break;
             case 54:
                 if(!(ch == '*')){
+                    if(ch == '\n'){
+                        line++;
+                    }
                     pCrtCh++;
                 }
                 else if(ch == '*'){
@@ -577,6 +581,9 @@ int getNextToken()
                 else{
                     pCrtCh++;
                     state = 54;
+                    if(ch == '\n'){
+                        line++;
+                    }
                 }
                 break;
         }
