@@ -322,12 +322,29 @@ int getNextToken()
                 }
                 else tkerr(addTk(END),"invalid character ");
                 break;
+            case 9:
+                if(ch == '+' || ch == '-') pCrtCh++;
+                state = 10;
+                break;
+            case 10:
+                if(isdigit(ch)){
+                    pCrtCh++;
+                    state = 11;
+                }
+                else tkerr(addTk(END),"invalid character. Expected digit. 2 ");
+                break;
+            case 11:
+                if(isdigit(ch)){
+                    pCrtCh++;
+                }
+                else state = 14;
+                break;
             case 12:
                 if(isdigit(ch)){
                     pCrtCh++;
                     state = 13;
                 }
-                else tkerr(addTk(END),"invalid character. Expected digit.");
+                else tkerr(addTk(END),"invalid character. Expected digit. 1");
                 break;
             case 13:
                 if(isdigit(ch)){
