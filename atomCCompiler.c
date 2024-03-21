@@ -58,13 +58,13 @@ void err(const char *fmt,...)
 
 void tkerr(const Token *tk,const char *fmt,...)
 {
-va_list va;
-va_start(va,fmt);
-fprintf(stderr,"error in line %d: ",tk->line);
-vfprintf(stderr,fmt,va);
-fputc('\n',stderr);
-va_end(va);
-exit(-1);
+    va_list va;
+    va_start(va,fmt);
+    fprintf(stderr,"error in line %d: ",tk->line);
+    vfprintf(stderr,fmt,va);
+    fputc('\n',stderr);
+    va_end(va);
+    exit(-1);
 }
 
 char *pCrtCh;
@@ -669,12 +669,81 @@ void tempTestPrint(){
     }
 }
 
+Token *consumedTk, *crtTk;
+
+int consume(int code){
+    if(crtTk->code==code){
+        consumedTk=crtTk;
+        crtTk=crtTk->next;
+        return 1;
+    }
+    return 0;
+}
+
+
+// typeBase: INT | DOUBLE | CHAR | STRUCT ID ;
+int typeBase(){
+    if(consume(INT)){
+        return 1;
+    }
+    if(consume(DOUBLE)){
+        return 1;
+    }
+    if(consume(CHAR)){
+        return 1;
+    }
+    if(consume(STRUCT)){
+        if(consume(ID)){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// arrayDecl: LBRACKET expr? RBRACKET ;
+int arrayDecl(){
+    if(!consume(LBRACKET))return 0;
+}
+
+
+// declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
+
+// unit: ( declStruct | declFunc | declVar )* END ;
+int unit(){
+    while(1){
+        if(declStruct()){
+        }
+        else if(declFunc()){
+        }
+        else if(declVar()){
+        }
+        else break;
+    }
+    if(!consume(END))tkerr(crtTk, "syntax error");
+    return 1;
+}
+
+// stmCompound: LACC ( declVar | stm )* RACC ; 
+int stmCompound(){
+    if(!consume(LACC))return 0;
+    while(1){
+        if(declVar()){
+        }
+        else if(stm()){
+        }
+        else break;
+    }
+    if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
+    return 1;
+}
+
 int main(int argc, char *argv[]){
     if(argc != 2){
         printf("Invalid usage!");
         exit(1);
     }
     readFile(argv[1]);
-    while(getNextToken() != END){}
-    tempTestPrint();
+    while(getNextToken() != END){} // lexical analysis
+    tempTestPrint(); // test print token list
+    crtTk = tokens; 
 }
