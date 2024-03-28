@@ -13,7 +13,7 @@ enum{ID, END, BREAK, CHAR, DOUBLE, ELSE, FOR, IF, INT, RETURN, STRUCT, VOID, WHI
 
 char *hex = "0123456789abcdefABCDEF";
 char *esc = "abfnrtv'?\"\\0";
-int esc_codes[12] = {7, 8, 12, 10, 13, 9, 11, 39, 63, 34, 92, 0};
+char *esc2 = "\a\b\f\n\r\t\v\'\?\"\\\0";
 
 typedef struct _Token{
     int code; // code (name)
@@ -393,7 +393,7 @@ int getNextToken()
                 if(escape == 0)
                     tk -> i = pStartCh[0];
                 else{
-                    tk->i = esc_codes[strchr(esc, pStartCh[0]) - esc];
+                    tk->i = esc2[strchr(esc, pStartCh[0]) - esc];
                     escape = 0;
                 }
                 return tk->code;
@@ -700,13 +700,53 @@ int typeBase(){
     return 0;
 }
 
+int expr(){
+    if(!consume(CT_INT)) return 0;
+    return 1;
+}
+
 // arrayDecl: LBRACKET expr? RBRACKET ;
 int arrayDecl(){
     if(!consume(LBRACKET))return 0;
+    expr();
+    if(!consume(RBRACKET))tkerr(crtTk,"missing ] or syntax error"); 
+    return 1;
 }
 
+// declFunc: ( typeBase MUL? | VOID ) ID
+int declFunc(){
+    return 0    ;
+}
 
 // declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
+int declVar(){
+    if(!typeBase())return 0;
+    if(!consume(ID))return 0;
+    if(arrayDecl()){}
+    while(1){
+        if(consume(COMMA)){
+            if(consume(ID)){
+                if(arrayDecl()){
+                }
+            }
+        }
+        else break;
+    }
+    if(!consume(SEMICOLON))tkerr(crtTk,"missing ; or syntax error");
+    return 1;
+}
+
+// declStruct: STRUCT ID LACC declVar* RACC SEMICOLON ;
+int declStruct(){
+    if(!consume(STRUCT)) return 0;
+    if(!consume(ID)) tkerr(crtTk,"expected struct ID");
+    if(!consume(LACC)) tkerr(crtTk,"expected ( after ID");
+    while(1){
+        if(declVar()){
+        }
+        else break;
+    }
+}
 
 // unit: ( declStruct | declFunc | declVar )* END ;
 int unit(){
@@ -724,6 +764,7 @@ int unit(){
 }
 
 // stmCompound: LACC ( declVar | stm )* RACC ; 
+/*
 int stmCompound(){
     if(!consume(LACC))return 0;
     while(1){
@@ -735,7 +776,7 @@ int stmCompound(){
     }
     if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
     return 1;
-}
+}*/
 
 int main(int argc, char *argv[]){
     if(argc != 2){
@@ -745,5 +786,6 @@ int main(int argc, char *argv[]){
     readFile(argv[1]);
     while(getNextToken() != END){} // lexical analysis
     tempTestPrint(); // test print token list
-    crtTk = tokens; 
+    crtTk = tokens;
+    int a = unit();
 }
