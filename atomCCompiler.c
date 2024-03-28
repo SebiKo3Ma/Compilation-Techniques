@@ -715,7 +715,9 @@ int arrayDecl(){
 
 // declFunc: ( typeBase MUL? | VOID ) ID
 int declFunc(){
-    return 0    ;
+    /*if(!typebase()) return 0;
+    if()*/
+    return 0;
 }
 
 // declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
@@ -740,12 +742,15 @@ int declVar(){
 int declStruct(){
     if(!consume(STRUCT)) return 0;
     if(!consume(ID)) tkerr(crtTk,"expected struct ID");
-    if(!consume(LACC)) tkerr(crtTk,"expected ( after ID");
+    if(!consume(LACC)) tkerr(crtTk,"expected { after ID");
     while(1){
         if(declVar()){
         }
         else break;
     }
+    if(!consume(RACC)) tkerr(crtTk,"expected }");
+    if(!consume(SEMICOLON))tkerr(crtTk,"missing ; or syntax error");
+    return 1;
 }
 
 // unit: ( declStruct | declFunc | declVar )* END ;
