@@ -713,8 +713,46 @@ int arrayDecl(){
     return 1;
 }
 
-// stmCompound: LACC ( declVar | stm )* RACC ; 
 /*
+stm: stmCompound 
+           | IF LPAR expr RPAR stm ( ELSE stm )?
+           | WHILE LPAR expr RPAR stm
+           | FOR LPAR expr? SEMICOLON expr? SEMICOLON expr? RPAR stm
+           | BREAK SEMICOLON
+           | RETURN expr? SEMICOLON
+           | expr? SEMICOLON ;
+*/
+int stm();
+
+int ruleIf(){
+    if(!consume(IF)) return 0;
+    if(!consume(LPAR)) tkerr(crtTk,"expected ( after if");
+    if(!expr()) tkerr(crtTk,"expected expression in if condition");
+    if(!consume(RPAR)) tkerr(crtTk,"expected ) after expression");
+    if(!stmCompound()) tkerr(crtTk,"expected statement after if condition");
+    if(consume(ELSE)){
+        if(!stm()) tkerr(crtTk,"expected statement after else");
+    }
+}
+
+int stm(){
+    if(ruleIf()){
+    }
+    /*else if(ruleWhile()){
+    }
+    else if(ruleWhile()){
+    }
+    else if(ruleFor()){
+    }
+    else if(ruleBreak()){
+    }
+    else if(ruleExpr()){
+    }*/
+    else return 0;
+}
+
+// stmCompound: LACC ( declVar | stm )* RACC ; 
+
 int stmCompound(){
     if(!consume(LACC))return 0;
     while(1){
@@ -726,7 +764,7 @@ int stmCompound(){
     }
     if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
     return 1;
-}*/
+}
 
 /* declFunc: ( typeBase MUL? | VOID ) ID
                     LPAR ( funcArg ( COMMA funcArg )* )? RPAR 
@@ -769,6 +807,7 @@ int declFunc(){
         else break;
     }
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after function declaration");
+    if(!stmCompound()) tkerr(crtTk,"expected statement in function");
     return 1;
 }
 
@@ -776,6 +815,7 @@ int declFunc(){
 int declVar(){
     if(!typeBase() && !check)return 0;
     if(!consume(ID) && !check)return 0;
+    check = 0;
     if(arrayDecl()){}
     while(1){
         if(consume(COMMA)){
