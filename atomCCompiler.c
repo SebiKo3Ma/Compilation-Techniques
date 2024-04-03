@@ -731,18 +731,29 @@ int ruleIf(){
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after expression");
     if(!stmCompound()) tkerr(crtTk,"expected statement after if condition");
     if(consume(ELSE)){
-        if(!stm()) tkerr(crtTk,"expected statement after else");
+        if(!stmCompound()) tkerr(crtTk,"expected statement after else");
     }
+    return 1;
+}
+
+int ruleWhile()
+{
+    if(!consume(WHILE))return 0;
+    if(!consume(LPAR))tkerr(crtTk,"missing ( after while");
+    if(!expr())tkerr(crtTk,"invalid expression after (");
+    if(!consume(RPAR))tkerr(crtTk,"missing )");
+    if(!stmCompound())tkerr(crtTk,"missing while statement");
+    return 1;
 }
 
 int stm(){
     if(ruleIf()){
     }
-    /*else if(ruleWhile()){
+    else if(ruleWhile()){
     }
     else if(ruleWhile()){
     }
-    else if(ruleFor()){
+    /*else if(ruleFor()){
     }
     else if(ruleBreak()){
     }
@@ -807,6 +818,7 @@ int declFunc(){
         else break;
     }
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after function declaration");
+    check = 0;
     if(!stmCompound()) tkerr(crtTk,"expected statement in function");
     return 1;
 }
@@ -814,7 +826,7 @@ int declFunc(){
 // declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
 int declVar(){
     if(!typeBase() && !check)return 0;
-    if(!consume(ID) && !check)return 0;
+    if(!consume(ID) && !check) tkerr(crtTk, "expected variable name");
     check = 0;
     if(arrayDecl()){}
     while(1){
