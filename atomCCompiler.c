@@ -713,17 +713,69 @@ int arrayDecl(){
     return 1;
 }
 
-// declFunc: ( typeBase MUL? | VOID ) ID
+// stmCompound: LACC ( declVar | stm )* RACC ; 
+/*
+int stmCompound(){
+    if(!consume(LACC))return 0;
+    while(1){
+        if(declVar()){
+        }
+        else if(stm()){
+        }
+        else break;
+    }
+    if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
+    return 1;
+}*/
+
+/* declFunc: ( typeBase MUL? | VOID ) ID
+                    LPAR ( funcArg ( COMMA funcArg )* )? RPAR 
+                        stmCompound ;
+*/
+
+// funcArg: typeBase ID arrayDecl? ;
+
+int funcArg(){
+    if(!typeBase()) return 0;
+    if(!consume(ID)) tkerr(crtTk,"missing argument ID or syntax error");
+    if(arrayDecl()){
+    }
+    return 1;
+}
+
+int check;
+
 int declFunc(){
-    /*if(!typebase()) return 0;
-    if()*/
-    return 0;
+    check = 0;
+
+    if(typeBase()){
+        if(consume(MUL)){
+            check = -1;
+        }
+    }
+    else if(consume(VOID)){
+    }
+    else return 0;
+    if(!consume(ID)) 
+        return 0;
+    else check++;
+    if(!consume(LPAR)) return 0;
+    if(funcArg()){
+    }
+    while(1){
+        if(consume(COMMA)){
+            if(!funcArg()) tkerr(crtTk,"expected argument after , ");
+        }
+        else break;
+    }
+    if(!consume(RPAR)) tkerr(crtTk,"expected ) after function declaration");
+    return 1;
 }
 
 // declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
 int declVar(){
-    if(!typeBase())return 0;
-    if(!consume(ID))return 0;
+    if(!typeBase() && !check)return 0;
+    if(!consume(ID) && !check)return 0;
     if(arrayDecl()){}
     while(1){
         if(consume(COMMA)){
@@ -744,6 +796,7 @@ int declStruct(){
     if(!consume(ID)) tkerr(crtTk,"expected struct ID");
     if(!consume(LACC)) tkerr(crtTk,"expected { after ID");
     while(1){
+        check = 0;
         if(declVar()){
         }
         else break;
@@ -768,21 +821,6 @@ int unit(){
     return 1;
 }
 
-// stmCompound: LACC ( declVar | stm )* RACC ; 
-/*
-int stmCompound(){
-    if(!consume(LACC))return 0;
-    while(1){
-        if(declVar()){
-        }
-        else if(stm()){
-        }
-        else break;
-    }
-    if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
-    return 1;
-}*/
-
 int main(int argc, char *argv[]){
     if(argc != 2){
         printf("Invalid usage!");
@@ -792,5 +830,5 @@ int main(int argc, char *argv[]){
     while(getNextToken() != END){} // lexical analysis
     tempTestPrint(); // test print token list
     crtTk = tokens;
-    int a = unit();
+    unit();
 }
