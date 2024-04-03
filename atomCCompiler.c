@@ -746,6 +746,43 @@ int ruleWhile()
     return 1;
 }
 
+int ruleFor(){
+    if(!consume(FOR)) return 0;
+    if(!consume(LPAR))tkerr(crtTk,"missing ( after for");
+    if(expr()){
+    }
+    if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after expr");
+    if(expr()){
+    }
+    if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after expr");
+    if(expr()){
+    }
+    if(!consume(RPAR))tkerr(crtTk,"missing )");
+    if(!stmCompound())tkerr(crtTk,"missing for statement");
+    return 1;
+}
+
+int ruleBreak(){
+    if(!consume(BREAK)) return 0;
+    if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after break");
+    return 1;
+}
+
+int ruleReturn(){
+    if(!consume(RETURN)) return 0;
+    if(expr()){
+    }
+    if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after break");
+    return 1;
+}
+
+int ruleExpr(){
+    if(expr()){
+    }
+    if(!consume(SEMICOLON)) return 0;
+    return 1;
+}
+
 int stm(){
     if(ruleIf()){
     }
@@ -753,12 +790,14 @@ int stm(){
     }
     else if(ruleWhile()){
     }
-    /*else if(ruleFor()){
+    else if(ruleFor()){
     }
     else if(ruleBreak()){
     }
+    else if(ruleReturn()){
+    }
     else if(ruleExpr()){
-    }*/
+    }
     else return 0;
 }
 
