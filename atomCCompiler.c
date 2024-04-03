@@ -729,9 +729,9 @@ int ruleIf(){
     if(!consume(LPAR)) tkerr(crtTk,"expected ( after if");
     if(!expr()) tkerr(crtTk,"expected expression in if condition");
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after expression");
-    if(!stmCompound()) tkerr(crtTk,"expected statement after if condition");
+    if(!stm()) tkerr(crtTk,"expected statement after if condition");
     if(consume(ELSE)){
-        if(!stmCompound()) tkerr(crtTk,"expected statement after else");
+        if(!stm()) tkerr(crtTk,"expected statement after else");
     }
     return 1;
 }
@@ -742,7 +742,7 @@ int ruleWhile()
     if(!consume(LPAR))tkerr(crtTk,"missing ( after while");
     if(!expr())tkerr(crtTk,"invalid expression after (");
     if(!consume(RPAR))tkerr(crtTk,"missing )");
-    if(!stmCompound())tkerr(crtTk,"missing while statement");
+    if(!stm())tkerr(crtTk,"missing while statement");
     return 1;
 }
 
@@ -758,7 +758,7 @@ int ruleFor(){
     if(expr()){
     }
     if(!consume(RPAR))tkerr(crtTk,"missing )");
-    if(!stmCompound())tkerr(crtTk,"missing for statement");
+    if(!stm())tkerr(crtTk,"missing for statement");
     return 1;
 }
 
@@ -784,7 +784,9 @@ int ruleExpr(){
 }
 
 int stm(){
-    if(ruleIf()){
+    if(stmCompound()){
+    }
+    else if(ruleIf()){
     }
     else if(ruleWhile()){
     }
