@@ -700,8 +700,48 @@ int typeBase(){
     return 0;
 }
 
+//exprEq: exprEq ( EQUAL | NOTEQ ) exprRel | exprRel ;
+
+
+// exprAnd: exprAnd AND exprEq | exprEq ;
+int exprAnd(){
+    return 1;
+}
+
+int exprUnary(){
+    return 1;
+}
+
+// exprOr: exprOr OR exprAnd | exprAnd ;
+int exprOr1(){
+    if(!consume(OR)) return 0;
+    if(!exprAnd()) return 0;
+    if(exprOr()){
+    }
+    return 1;
+}
+
+int exprOr(){
+    if(!exprAnd()) return 0;
+    if(!exprOr1()) return 0;
+    return 1;
+}
+
+//exprAssign: exprUnary ASSIGN exprAssign | exprOr ;
+int exprAssign(){
+    if(!exprUnary()) return 0;
+    if(!consume(ASSIGN)) tkerr(crtTk, "missing = in assign expression");
+    if(exprAssign()){
+    }
+    else if(exprOr()){
+    }
+    else return 0;
+    return 1;
+}
+
+// expr: exprAssign ;
 int expr(){
-    if(!consume(CT_INT)) return 0;
+    if(!exprAssign()) return 0;
     return 1;
 }
 
