@@ -695,11 +695,6 @@ int consume(int code){
     return 0;
 }
 
-void deconsume(){
-    crtTk = consumedTk;
-}
-
-
 // typeBase: INT | DOUBLE | CHAR | STRUCT ID ;
 int typeBase(){
     if(consume(INT)){
@@ -741,17 +736,20 @@ int exprPrimary(){
     if(consume(ID)){ printf("consumed id\n");
         if(consume(LPAR)){
             printf("consumed lpar\n");
-            if(expr()){
-                while(1){
-                    if(consume(COMMA)){
-                        if(!expr()) tkerr(crtTk, "expected expression after ,");
+            if(!consume(RPAR)){
+                if(expr()){
+                    while(1){
+                        if(consume(COMMA)){
+                            if(!expr()) tkerr(crtTk, "expected expression after ,");
+                        }
+                        else break;
                     }
-                    else break;
                 }
+                printf("se iese din if\n");
+                printCrtTk();
+                if(!consume(RPAR)) tkerr(crtTk, "expected )");
             }
-            printf("se iese din if\n");
-            printCrtTk();
-            if(!consume(RPAR)) tkerr(crtTk, "expected )");
+            else printf("consumed rpar\n");
         }
         printCrtTk();
     }
@@ -965,6 +963,7 @@ int exprOr(){
 
 //exprAssign: exprUnary ASSIGN exprAssign | exprOr ;
 int exprAssign(){
+    Token *startTk = crtTk;
     if(exprUnary()) { printf("Este unary\n");
         if(consume(ASSIGN)){ 
             if(!exprAssign()) tkerr(crtTk, "missing assign expression");
@@ -972,7 +971,7 @@ int exprAssign(){
         //else tkerr(crtTk, "missing = in assign expression");
         else {
             printf("%s\n", enum_names[crtTk->code]);
-            deconsume();
+            crtTk = startTk;
             printf("%s\n", enum_names[crtTk->code]);
         }
     }
