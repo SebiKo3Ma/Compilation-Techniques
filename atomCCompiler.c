@@ -671,6 +671,21 @@ void tempTestPrint(){
 
 Token *consumedTk, *crtTk;
 
+void printCrtTk(){
+    Token *temp;
+    temp = crtTk;
+    printf("%s ", enum_names[temp->code]);
+    if(temp->code == 0 || temp->code == 16)
+        printf("%s ", temp->text);
+    else if(temp->code == 13)
+        printf("%ld ", temp->i);
+    else if(temp->code == 15)
+        printf("%c %ld ", temp->i, temp->i);
+    else if(temp->code == 14)
+        printf("%f", temp->r);
+    printf("%d\n", temp->line);
+}
+
 int consume(int code){
     if(crtTk->code==code){
         consumedTk=crtTk;
@@ -678,6 +693,10 @@ int consume(int code){
         return 1;
     }
     return 0;
+}
+
+void deconsume(){
+    crtTk = consumedTk;
 }
 
 
@@ -700,48 +719,275 @@ int typeBase(){
     return 0;
 }
 
-//exprEq: exprEq ( EQUAL | NOTEQ ) exprRel | exprRel ;
-
-
-// exprAnd: exprAnd AND exprEq | exprEq ;
-int exprAnd(){
+// typeName: typeBase arrayDecl? 
+int typeName(){
+    if(!typeBase()) return 0;
+    if(arrayDecl()){
+    }
     return 1;
 }
 
+/*
+exprPrimary: ID ( LPAR ( expr ( COMMA expr )* )? RPAR )?
+           | CT_INT
+           | CT_REAL 
+           | CT_CHAR 
+           | CT_STRING 
+           | LPAR expr RPAR ;
+*/
+int exprPrimary(){
+    printf("Verificam primary\n");
+    printCrtTk();
+    if(consume(ID)){ printf("consumed id\n");
+        if(consume(LPAR)){
+            printf("consumed lpar\n");
+            if(expr()){
+                while(1){
+                    if(consume(COMMA)){
+                        if(!expr()) tkerr(crtTk, "expected expression after ,");
+                    }
+                    else break;
+                }
+            }
+            printf("se iese din if\n");
+            printCrtTk();
+            if(!consume(RPAR)) tkerr(crtTk, "expected )");
+        }
+        printCrtTk();
+    }
+    else if(consume(CT_INT)){
+    }
+    else if(consume(CT_REAL)){
+    }
+    else if(consume(CT_CHAR)){
+    }
+    else if(consume(CT_STRING)){
+    }
+    else if(consume(LPAR)){
+        if(!expr()) tkerr(crtTk, "Expected expression after (");
+        else if (!consume(RPAR)) tkerr(crtTk, "Expected ) after expression");
+    }
+    else {printf("not primary\n"); return 0;}
+    printf("exprPrimary\n");
+    return 1;
+}
+
+/*
+exprPostfix: exprPostfix LBRACKET expr RBRACKET
+           | exprPostfix DOT ID 
+           | exprPrimary ;
+*/
+int exprPostfix1(){
+    if(consume(LBRACKET)){
+        if(!expr()) tkerr(crtTk, "Expected expression after [");
+        if(!consume(RBRACKET)) tkerr(crtTk, "Expected ] after expression");
+    }
+    else if(consume(DOT)){
+        if(!consume(ID)) tkerr(crtTk, "Expected ID after .");
+    }
+    return 1;
+}
+
+int exprPostfix(){
+    printf("Verificam postfix\n");
+    if(!exprPrimary()) return 0;
+    if(!exprPostfix1()) return 0;
+    printf("exprPostfix\n");
+    return 1;
+}
+
+// exprUnary: ( SUB | NOT ) exprUnary | exprPostfix ;
 int exprUnary(){
+    printf("Verificam unary\n");
+    if(consume(SUB) || consume(NOT)){
+        if(!exprUnary()) tkerr(crtTk, "expected unary expression");
+    }
+    else if(exprPostfix()){
+    }
+    else return 0;
+    printf("exprUnary\n");
+    return 1;
+}
+
+// exprCast: LPAR typeName RPAR exprCast | exprUnary ;
+int exprCast(){
+    printf("Verificam cast\n");
+    if(consume(LPAR)){ 
+        if(!typeName()) return 0;
+        if(!consume(RPAR)) return 0;
+        if(!exprCast()) return 0;
+    }
+    else if(exprUnary()){
+    }
+    else return 0;
+    printf("exprCast\n");
+    return 1;
+}
+
+// exprMul: exprMul ( MUL | DIV ) exprCast | exprCast ;
+int exprMul1(){
+    if(consume(MUL)){
+        if(!exprCast()) tkerr(crtTk, "expected expression after *");
+        if(exprMul1()){
+        }
+    }
+    else if(consume(DIV)){
+        if(!exprCast()) tkerr(crtTk, "expected expression after /");
+        if(exprMul1()){
+        }
+    }
+    return 1;
+}
+
+int exprMul(){
+    printf("Verificam mul\n");
+    if(!exprCast()) return 0;
+    if(!exprMul1()) return 0;
+    printf("exprMul\n");
+    return 1;
+}
+
+// exprAdd: exprAdd ( ADD | SUB ) exprMul | exprMul ;
+int exprAdd1(){
+    if(consume(ADD)){
+        if(!exprMul()) tkerr(crtTk, "expected expression after +");
+        if(exprAdd1()){
+        }
+    }
+    else if(consume(SUB)){
+        if(!exprMul()) tkerr(crtTk, "expected expression after -");
+        if(exprAdd1()){
+        }
+    }
+    return 1;
+}
+
+int exprAdd(){
+    printf("Verificam add\n");
+    if(!exprMul()) return 0;
+    if(!exprAdd1()) return 0;
+    printf("exprAdd\n");
+    return 1;
+}
+
+// exprRel: exprRel ( LESS | LESSEQ | GREATER | GREATEREQ ) exprAdd | exprAdd ;
+int exprRel1(){
+    if(consume(LESS)){
+        if(!exprAdd()) tkerr(crtTk, "expected expression after <");
+            if(exprRel1()){
+        }
+    }
+    else if(consume(LESSEQ)){
+        if(!exprAdd()) tkerr(crtTk, "expected expression after <=");
+            if(exprRel1()){
+        }
+    }
+    else if(consume(GREATER)){
+        if(!exprAdd()) tkerr(crtTk, "expected expression after >");
+            if(exprRel1()){
+        }
+    }
+    else if(consume(GREATEREQ)){
+        if(!exprAdd()) tkerr(crtTk, "expected expression after >=");
+            if(exprRel1()){
+        }
+    }
+    return 1;
+}
+
+int exprRel(){
+    printf("Verificam rel\n");
+    if(!exprAdd()) return 0;
+    if(!exprRel1()) return 0;
+    printf("exprRel\n");
+    return 1;
+}
+
+
+//exprEq: exprEq ( EQUAL | NOTEQ ) exprRel | exprRel ;
+int exprEq1(){
+    if(consume(EQUAL)){
+        if(!exprRel()) tkerr(crtTk, "expected expression after ==");
+            if(exprEq1()){
+        }
+    }
+    else if(consume(NOTEQ)){
+        if(!exprRel()) tkerr(crtTk, "expected expression after !=");
+        if(exprEq1()){
+        }
+    }
+    return 1;
+}
+
+int exprEq(){
+    printf("Verificam eq\n");
+    if(!exprRel()) return 0;
+    if(!exprEq1()) return 0;
+    printf("exprEq\n");
+    return 1;
+}
+
+// exprAnd: exprAnd AND exprEq | exprEq ;
+int exprAnd1(){
+    if(consume(AND)){
+        if(!exprEq()) tkerr(crtTk, "expected expression after &&");
+        if(exprAnd1()){
+        }       
+    }
+    return 1;
+}
+
+int exprAnd(){
+    printf("Verificam and\n");
+    if(!exprEq()) return 0;
+    if(!exprAnd1()) return 0;
+    printf("exprAnd\n");
     return 1;
 }
 
 // exprOr: exprOr OR exprAnd | exprAnd ;
 int exprOr1(){
-    if(!consume(OR)) return 0;
-    if(!exprAnd()) return 0;
-    if(exprOr()){
+    if(consume(OR)){ printf("Consumed ||\n");
+        if(!exprAnd()) tkerr(crtTk, "expected expression after ||");
+        if(exprOr1()){
+        }
     }
     return 1;
 }
 
 int exprOr(){
-    if(!exprAnd()) return 0;
-    if(!exprOr1()) return 0;
+    printf("Verificam or\n");
+    if(!exprAnd()) { printf("nu e\n");return 0;}
+    if(!exprOr1()) {printf("nu e din nou\n"); return 0; }
+    printf("exprOr\n");
     return 1;
 }
 
 //exprAssign: exprUnary ASSIGN exprAssign | exprOr ;
 int exprAssign(){
-    if(!exprUnary()) return 0;
-    if(!consume(ASSIGN)) tkerr(crtTk, "missing = in assign expression");
-    if(exprAssign()){
+    if(exprUnary()) { printf("Este unary\n");
+        if(consume(ASSIGN)){ 
+            if(!exprAssign()) tkerr(crtTk, "missing assign expression");
+        }
+        //else tkerr(crtTk, "missing = in assign expression");
+        else {
+            printf("%s\n", enum_names[crtTk->code]);
+            deconsume();
+            printf("%s\n", enum_names[crtTk->code]);
+        }
     }
-    else if(exprOr()){
+    if(exprOr()){
     }
     else return 0;
+    printf("exprAssign\n");
     return 1;
 }
 
 // expr: exprAssign ;
 int expr(){
-    if(!exprAssign()) return 0;
+    printf("VERIFICAM EXPRESIE de la ");
+    printCrtTk();
+    if(!exprAssign()) {printf("nu este expresie\n"); return 0;}
     return 1;
 }
 
@@ -841,6 +1087,7 @@ int stm(){
     else if(ruleExpr()){
     }
     else return 0;
+    return 1;
 }
 
 // stmCompound: LACC ( declVar | stm )* RACC ; 
@@ -858,11 +1105,6 @@ int stmCompound(){
     return 1;
 }
 
-/* declFunc: ( typeBase MUL? | VOID ) ID
-                    LPAR ( funcArg ( COMMA funcArg )* )? RPAR 
-                        stmCompound ;
-*/
-
 // funcArg: typeBase ID arrayDecl? ;
 
 int funcArg(){
@@ -872,6 +1114,11 @@ int funcArg(){
     }
     return 1;
 }
+
+/* declFunc: ( typeBase MUL? | VOID ) ID
+                    LPAR ( funcArg ( COMMA funcArg )* )? RPAR 
+                        stmCompound ;
+*/
 
 int check;
 
