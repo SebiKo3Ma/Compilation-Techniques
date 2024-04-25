@@ -671,9 +671,7 @@ void tempTestPrint(){
 
 Token *consumedTk, *crtTk;
 
-void printCrtTk(){
-    Token *temp;
-    temp = crtTk;
+void printTk(Token *temp){
     printf("%s ", enum_names[temp->code]);
     if(temp->code == 0 || temp->code == 16)
         printf("%s ", temp->text);
@@ -732,7 +730,7 @@ exprPrimary: ID ( LPAR ( expr ( COMMA expr )* )? RPAR )?
 */
 int exprPrimary(){
     printf("Verificam primary\n");
-    printCrtTk();
+    printTk(crtTk);
     if(consume(ID)){ printf("consumed id\n");
         if(consume(LPAR)){
             printf("consumed lpar\n");
@@ -745,13 +743,11 @@ int exprPrimary(){
                         else break;
                     }
                 }
-                printf("se iese din if\n");
-                printCrtTk();
                 if(!consume(RPAR)) tkerr(crtTk, "expected )");
             }
             else printf("consumed rpar\n");
         }
-        printCrtTk();
+        printTk(crtTk);
     }
     else if(consume(CT_INT)){
     }
@@ -966,6 +962,7 @@ int exprAssign(){
     Token *startTk = crtTk;
     if(exprUnary()) { printf("Este unary\n");
         if(consume(ASSIGN)){ 
+            printTk(consumedTk);
             if(!exprAssign()) tkerr(crtTk, "missing assign expression");
         }
         //else tkerr(crtTk, "missing = in assign expression");
@@ -985,7 +982,7 @@ int exprAssign(){
 // expr: exprAssign ;
 int expr(){
     printf("VERIFICAM EXPRESIE de la ");
-    printCrtTk();
+    printTk(crtTk);
     if(!exprAssign()) {printf("nu este expresie\n"); return 0;}
     return 1;
 }
@@ -1171,9 +1168,10 @@ int declVar(){
 
 // declStruct: STRUCT ID LACC declVar* RACC SEMICOLON ;
 int declStruct(){
+    Token *startTk = crtTk;
     if(!consume(STRUCT)) return 0;
     if(!consume(ID)) tkerr(crtTk,"expected struct ID");
-    if(!consume(LACC)) tkerr(crtTk,"expected { after ID");
+    if(!consume(LACC)) {crtTk = startTk; return 0;};
     while(1){
         check = 0;
         if(declVar()){
