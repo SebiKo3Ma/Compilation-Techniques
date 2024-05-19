@@ -2,6 +2,18 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+
+void err(const char *fmt,...)
+{
+    va_list va;
+    va_start(va,fmt);
+    fprintf(stderr,"error: ");
+    vfprintf(stderr,fmt,va);
+    fputc('\n',stderr);
+    va_end(va);
+    exit(-1);
+}
 
 #define SAFEALLOC(var,Type) if((var=(Type*)malloc(sizeof(Type)))==NULL)err("not enough memory");
 
@@ -45,16 +57,6 @@ Token *addTk(int code)
     return tk;
 }
 
-void err(const char *fmt,...)
-{
-    va_list va;
-    va_start(va,fmt);
-    fprintf(stderr,"error: ");
-    vfprintf(stderr,fmt,va);
-    fputc('\n',stderr);
-    va_end(va);
-    exit(-1);
-}
 
 void tkerr(const Token *tk,const char *fmt,...)
 {
@@ -85,7 +87,7 @@ void readFile(char *infile){
     }
 }
 
-char *createString(char *pStartCh, char *pEndCh){
+char *createString(const char *pStartCh, const char *pEndCh){
 
     // Calculate the length of the string between the two pointers
     size_t length = pEndCh - pStartCh;
@@ -660,7 +662,7 @@ void tempTestPrint(){
     else if(temp->code == 13)
         printf("%ld ", temp->i);
     else if(temp->code == 15)
-        printf("%c %ld ", temp->i, temp->i);
+        printf("%c %ld ", (int) temp->i, temp->i);
     else if(temp->code == 14)
         printf("%f", temp->r);
     printf("%d\n", temp->line);
@@ -677,7 +679,7 @@ void printTk(Token *temp){
     else if(temp->code == 13)
         printf("%ld ", temp->i);
     else if(temp->code == 15)
-        printf("%c %ld ", temp->i, temp->i);
+        printf("%c %ld ", (int) temp->i, temp->i);
     else if(temp->code == 14)
         printf("%f", temp->r);
     printf("%d\n", temp->line);
@@ -691,6 +693,8 @@ int consume(int code){
     }
     return 0;
 }
+
+int expr(), arrayDecl();
 
 // typeBase: INT | DOUBLE | CHAR | STRUCT ID ;
 int typeBase(){
@@ -728,11 +732,8 @@ exprPrimary: ID ( LPAR ( expr ( COMMA expr )* )? RPAR )?
            | LPAR expr RPAR ;
 */
 int exprPrimary(){
-    printf("Verificam primary\n");
-    printTk(crtTk);
-    if(consume(ID)){ printf("consumed id\n");
+    if(consume(ID)){
         if(consume(LPAR)){
-            printf("consumed lpar\n");
             if(!consume(RPAR)){
                 if(expr()){
                     while(1){
@@ -744,9 +745,7 @@ int exprPrimary(){
                 }
                 if(!consume(RPAR)) tkerr(crtTk, "expected )");
             }
-            else printf("consumed rpar\n");
         }
-        printTk(crtTk);
     }
     else if(consume(CT_INT)){
     }
@@ -760,8 +759,7 @@ int exprPrimary(){
         if(!expr()) tkerr(crtTk, "Expected expression after (");
         else if (!consume(RPAR)) tkerr(crtTk, "Expected ) after expression");
     }
-    else {printf("not primary\n"); return 0;}
-    printf("exprPrimary\n");
+    else return 0;
     return 1;
 }
 
@@ -782,29 +780,24 @@ int exprPostfix1(){
 }
 
 int exprPostfix(){
-    printf("Verificam postfix\n");
     if(!exprPrimary()) return 0;
     if(!exprPostfix1()) return 0;
-    printf("exprPostfix\n");
     return 1;
 }
 
 // exprUnary: ( SUB | NOT ) exprUnary | exprPostfix ;
 int exprUnary(){
-    printf("Verificam unary\n");
     if(consume(SUB) || consume(NOT)){
         if(!exprUnary()) tkerr(crtTk, "expected unary expression");
     }
     else if(exprPostfix()){
     }
     else return 0;
-    printf("exprUnary\n");
     return 1;
 }
 
 // exprCast: LPAR typeName RPAR exprCast | exprUnary ;
 int exprCast(){
-    printf("Verificam cast\n");
     if(consume(LPAR)){ 
         if(!typeName()) return 0;
         if(!consume(RPAR)) return 0;
@@ -813,7 +806,6 @@ int exprCast(){
     else if(exprUnary()){
     }
     else return 0;
-    printf("exprCast\n");
     return 1;
 }
 
@@ -833,10 +825,8 @@ int exprMul1(){
 }
 
 int exprMul(){
-    printf("Verificam mul\n");
     if(!exprCast()) return 0;
     if(!exprMul1()) return 0;
-    printf("exprMul\n");
     return 1;
 }
 
@@ -856,10 +846,8 @@ int exprAdd1(){
 }
 
 int exprAdd(){
-    printf("Verificam add\n");
     if(!exprMul()) return 0;
     if(!exprAdd1()) return 0;
-    printf("exprAdd\n");
     return 1;
 }
 
@@ -889,10 +877,8 @@ int exprRel1(){
 }
 
 int exprRel(){
-    printf("Verificam rel\n");
     if(!exprAdd()) return 0;
     if(!exprRel1()) return 0;
-    printf("exprRel\n");
     return 1;
 }
 
@@ -913,10 +899,8 @@ int exprEq1(){
 }
 
 int exprEq(){
-    printf("Verificam eq\n");
     if(!exprRel()) return 0;
     if(!exprEq1()) return 0;
-    printf("exprEq\n");
     return 1;
 }
 
@@ -931,16 +915,14 @@ int exprAnd1(){
 }
 
 int exprAnd(){
-    printf("Verificam and\n");
     if(!exprEq()) return 0;
     if(!exprAnd1()) return 0;
-    printf("exprAnd\n");
     return 1;
 }
 
 // exprOr: exprOr OR exprAnd | exprAnd ;
 int exprOr1(){
-    if(consume(OR)){ printf("Consumed ||\n");
+    if(consume(OR)){
         if(!exprAnd()) tkerr(crtTk, "expected expression after ||");
         if(exprOr1()){
         }
@@ -949,40 +931,32 @@ int exprOr1(){
 }
 
 int exprOr(){
-    printf("Verificam or\n");
-    if(!exprAnd()) { printf("nu e\n");return 0;}
-    if(!exprOr1()) {printf("nu e din nou\n"); return 0; }
-    printf("exprOr\n");
+    if(!exprAnd()) return 0;
+    if(!exprOr1()) return 0; 
     return 1;
 }
 
 //exprAssign: exprUnary ASSIGN exprAssign | exprOr ;
 int exprAssign(){
     Token *startTk = crtTk;
-    if(exprUnary()) { printf("Este unary\n");
+    if(exprUnary()) {
         if(consume(ASSIGN)){ 
-            printTk(consumedTk);
             if(!exprAssign()) tkerr(crtTk, "missing assign expression");
         }
         //else tkerr(crtTk, "missing = in assign expression");
         else {
-            printf("%s\n", enum_names[crtTk->code]);
             crtTk = startTk;
-            printf("%s\n", enum_names[crtTk->code]);
         }
     }
     if(exprOr()){
     }
     else return 0;
-    printf("exprAssign\n");
     return 1;
 }
 
 // expr: exprAssign ;
 int expr(){
-    printf("VERIFICAM EXPRESIE de la ");
-    printTk(crtTk);
-    if(!exprAssign()) {printf("nu este expresie\n"); return 0;}
+    if(!exprAssign()) return 0;
     return 1;
 }
 
@@ -1003,7 +977,7 @@ stm: stmCompound
            | RETURN expr? SEMICOLON
            | expr? SEMICOLON ;
 */
-int stm();
+int stm(), declVar(), stmCompound();
 
 int ruleIf(){
     if(!consume(IF)) return 0;
