@@ -8,6 +8,7 @@
 #include "syntax.h"
 #include "lexer.h"
 #include "utils.h"
+#include "domain.h"
 
 Token *consumedTk, *crtTk;
 
@@ -465,20 +466,32 @@ int declVar(){
     return 1;
 }
 
+Symbol *crtStruct;
+Token *tkName;
+
 // declStruct: STRUCT ID LACC declVar* RACC SEMICOLON ;
 int declStruct(){
     Token *startTk = crtTk;
     if(!consume(STRUCT)) return 0;
     if(!consume(ID)) tkerr(crtTk,"expected struct ID");
     if(!consume(LACC)) {crtTk = startTk; return 0;};
+
+    if(findSymbol(&symbols,tkName->text))
+            tkerr(crtTk,"symbol redefinition: %s",tkName->text);
+        crtStruct=addSymbol(&symbols,tkName->text,CLS_STRUCT);
+        initSymbols(&crtStruct->members);
+
     while(1){
         check = 0;
         if(declVar()){
         }
         else break;
     }
+
+
     if(!consume(RACC)) tkerr(crtTk,"expected }");
     if(!consume(SEMICOLON))tkerr(crtTk,"missing ; or syntax error");
+    crtStruct=NULL;
     return 1;
 }
 
