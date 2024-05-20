@@ -48,8 +48,16 @@ Symbol *findSymbol(Symbols *symbols,const char *name){
     }
     return 0;
 }
-/*
+
 Symbol *deleteSymbolsAfter(Symbols *symbols, Symbol*s){
-    ;
+    Symbol *temp = *symbols->end - 1;
+    Symbol *toDelete;
+    while(temp != s){
+        toDelete = temp;
+        temp--;
+        symbols->end--;
+        free(toDelete);
+    }
+    return 0;
 }
-*/
+

@@ -12,6 +12,35 @@
 
 Token *consumedTk, *crtTk;
 
+Symbol *crtStruct, *crtFunc;
+Token *tkName;
+int crtDepth;
+Type t, *ret;
+
+void addVar(Token *tkName,Type *t)
+{
+    Symbol *s;
+    if(crtStruct){
+        if(findSymbol(&crtStruct->members,tkName->text))
+            tkerr(crtTk,"symbol redefinition: %s",tkName->text);
+        s=addSymbol(&crtStruct->members,tkName->text,CLS_VAR);
+    }
+    else if(crtFunc){
+        s=findSymbol(&symbols,tkName->text);
+        if(s&&s->depth==crtDepth)
+            tkerr(crtTk,"symbol redefinition: %s",tkName->text);
+        s=addSymbol(&symbols,tkName->text,CLS_VAR);
+        s->mem=MEM_LOCAL;
+    }
+    else{
+        if(findSymbol(&symbols,tkName->text))
+            tkerr(crtTk,"symbol redefinition: %s",tkName->text);
+        s=addSymbol(&symbols,tkName->text,CLS_VAR);   
+        s->mem=MEM_GLOBAL;
+    }
+    s->type=*t;
+}
+
 int consume(int code){
     if(crtTk->code==code){
         consumedTk=crtTk;
@@ -26,16 +55,24 @@ int expr(), arrayDecl();
 // typeBase: INT | DOUBLE | CHAR | STRUCT ID ;
 int typeBase(){
     if(consume(INT)){
+        ret->typeBase=TB_INT;
         return 1;
     }
     if(consume(DOUBLE)){
+        ret->typeBase=TB_DOUBLE;
         return 1;
     }
     if(consume(CHAR)){
+        ret->typeBase=TB_CHAR;
         return 1;
     }
     if(consume(STRUCT)){
         if(consume(ID)){
+            Symbol      *s=findSymbol(&symbols,tkName->text);
+            if(s==NULL)tkerr(crtTk,"undefined symbol: %s",tkName->text);
+            if(s->cls!=CLS_STRUCT)tkerr(crtTk,"%s is not a struct",tkName->text);
+            ret->typeBase=TB_STRUCT;
+            ret->s=s;
             return 1;
         }
     }
@@ -46,6 +83,9 @@ int typeBase(){
 int typeName(){
     if(!typeBase()) return 0;
     if(arrayDecl()){
+    }
+    else{
+        ret->nElements=-1;
     }
     return 1;
 }
@@ -290,7 +330,9 @@ int expr(){
 // arrayDecl: LBRACKET expr? RBRACKET ;
 int arrayDecl(){
     if(!consume(LBRACKET))return 0;
-    expr();
+    if(expr()){
+        ret->nElements=0; 
+    }
     if(!consume(RBRACKET))tkerr(crtTk,"missing ] or syntax error"); 
     return 1;
 }
@@ -389,7 +431,9 @@ int stm(){
 // stmCompound: LACC ( declVar | stm )* RACC ; 
 
 int stmCompound(){
+    Symbol *start=symbols.end[-1];
     if(!consume(LACC))return 0;
+    crtDepth++;
     while(1){
         if(declVar()){
         }
@@ -398,6 +442,9 @@ int stmCompound(){
         else break;
     }
     if(!consume(RACC))tkerr(crtTk,"missing } or syntax error");
+    
+    crtDepth--;
+    deleteSymbolsAfter(&symbols,start);
     return 1;
 }
 
@@ -408,6 +455,15 @@ int funcArg(){
     if(!consume(ID)) tkerr(crtTk,"missing argument ID or syntax error");
     if(arrayDecl()){
     }
+    else{
+        t.nElements=-1; 
+    }
+    Symbol  *s=addSymbol(&symbols,tkName->text,CLS_VAR);
+    s->mem=MEM_ARG;
+    s->type=t;
+    s=addSymbol(&crtFunc->args,tkName->text,CLS_VAR);
+    s->mem=MEM_ARG;
+    s->type=t;
     return 1;
 }
 
@@ -424,15 +480,28 @@ int declFunc(){
     if(typeBase()){
         if(consume(MUL)){
             check = -1;
+            t.nElements=0;
+        }
+        else{
+            t.nElements=-1;
         }
     }
     else if(consume(VOID)){
+        t.typeBase=TB_VOID;
     }
     else return 0;
     if(!consume(ID)) 
         return 0;
     else check++;
     if(!consume(LPAR)) return 0;
+
+    if(findSymbol(&symbols,tkName->text))
+        tkerr(crtTk,"symbol redefinition: %s",tkName->text);
+    crtFunc=addSymbol(&symbols,tkName->text,CLS_FUNC);
+    initSymbols(&crtFunc->args);
+    crtFunc->type=t;
+    crtDepth++;
+
     if(funcArg()){
     }
     while(1){
@@ -442,8 +511,13 @@ int declFunc(){
         else break;
     }
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after function declaration");
+    crtDepth--;
     check = 0;
     if(!stmCompound()) tkerr(crtTk,"expected statement in function");
+    
+    deleteSymbolsAfter(&symbols,crtFunc);
+    crtFunc=NULL;
+
     return 1;
 }
 
@@ -452,12 +526,21 @@ int declVar(){
     if(!typeBase() && !check)return 0;
     if(!consume(ID) && !check) tkerr(crtTk, "expected variable name");
     check = 0;
-    if(arrayDecl()){}
+    if(arrayDecl()){
+    }
+    else{
+        t.nElements=-1;
+    }
+    addVar(tkName,&t);
     while(1){
         if(consume(COMMA)){
             if(consume(ID)){
                 if(arrayDecl()){
                 }
+                else{
+                    t.nElements=-1;
+                }
+                addVar(tkName,&t);
             }
         }
         else break;
@@ -465,9 +548,6 @@ int declVar(){
     if(!consume(SEMICOLON))tkerr(crtTk,"missing ; or syntax error");
     return 1;
 }
-
-Symbol *crtStruct;
-Token *tkName;
 
 // declStruct: STRUCT ID LACC declVar* RACC SEMICOLON ;
 int declStruct(){

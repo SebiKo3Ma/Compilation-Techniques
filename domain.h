@@ -35,6 +35,8 @@ typedef struct _Symbol{
 }Symbol;
 Symbols symbols;
 
+extern int crtDepth;
+
 void initSymbols(Symbols *symbols);
 
 Symbol *addSymbol(Symbols *symbols,const char *name,int cls);
