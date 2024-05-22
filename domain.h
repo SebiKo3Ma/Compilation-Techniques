@@ -43,4 +43,4 @@ Symbol *addSymbol(Symbols *symbols,const char *name,int cls);
 
 Symbol *findSymbol(Symbols *symbols,const char *name);
 
-Symbol *deleteSymbolsAfter(Symbols *symbols, Symbol*s);
+void deleteSymbolsAfter(Symbols *symbols, Symbol*s);

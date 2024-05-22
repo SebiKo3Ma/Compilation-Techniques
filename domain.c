@@ -49,7 +49,7 @@ Symbol *findSymbol(Symbols *symbols,const char *name){
     return 0;
 }
 
-Symbol *deleteSymbolsAfter(Symbols *symbols, Symbol*s){
+void deleteSymbolsAfter(Symbols *symbols, Symbol*s){
     Symbol *temp = *symbols->end - 1;
     Symbol *toDelete;
     while(temp != s){
@@ -58,6 +58,5 @@ Symbol *deleteSymbolsAfter(Symbols *symbols, Symbol*s){
         symbols->end--;
         free(toDelete);
     }
-    return 0;
 }
 
