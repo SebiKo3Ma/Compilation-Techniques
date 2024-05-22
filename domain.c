@@ -39,24 +39,62 @@ Symbol *addSymbol(Symbols *symbols,const char *name,int cls)
     return s;
 }
 
-Symbol *findSymbol(Symbols *symbols,const char *name){
-    Symbol *s = *symbols->end - 1;
-    while(s >= *symbols->begin){
-        if(strcmp(s->name, name) == 0)
-            return s;
-        s--;
-    }
-    return 0;
-}
+// Symbol *findSymbol(Symbols *symbols,const char *name){
+//     Symbol *s = *symbols->end - 1;
+//     while(s >= *symbols->begin){
+//         if(strcmp(s->name, name) == 0)
+//             return s;
+//         s--;
+//     }
+//     return 0;
+// }
 
-void deleteSymbolsAfter(Symbols *symbols, Symbol*s){
-    Symbol *temp = *symbols->end - 1;
-    Symbol *toDelete;
-    while(temp != s){
-        toDelete = temp;
-        temp--;
-        symbols->end--;
-        free(toDelete);
-    }
-}
 
+// void deleteSymbolsAfter(Symbols *symbols, Symbol*s){
+//     Symbol *temp = *symbols->end - 1;
+//     Symbol *toDelete;
+//     while(temp != s){
+//         toDelete = temp;
+//         temp--;
+//         symbols->end--;
+//         free(toDelete);
+//     }
+// }
+
+
+Symbol *findSymbol(Symbols *symbols, const char *name)
+	{
+		int n = symbols->end - symbols->begin;
+		int i;
+		
+		for (i = n - 1; i >= 0; i--)
+		{
+			if (!strcmp(symbols->begin[i]->name, name))
+				return symbols->begin[i];
+		}
+		
+		return NULL;
+	}
+
+void deleteSymbolsAfter(Symbols *symbols, Symbol *start)
+	{
+		int pos, i;
+		int n = symbols->end - symbols->begin;
+
+		for (i = n - 1; i >= 0; i--)
+		{
+			if (!strcmp(symbols->begin[i]->name, start->name))
+			{
+				pos = i;
+				break;
+			}
+		}
+
+		printf("[debug]: deleteSymbolsAfter() = %d, n = %d\n", pos, n);
+
+		for (i = pos + 1; i < n; i++)
+		{
+			//free(symbols->begin[i]);
+			//symbols->begin[i] = NULL;
+		}
+	}

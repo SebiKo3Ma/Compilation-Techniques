@@ -13,9 +13,7 @@
 Token *consumedTk, *crtTk;
 
 Symbol *crtStruct, *crtFunc;
-Token *tkName;
 int crtDepth;
-Type t, *ret;
 
 void addVar(Token *tkName,Type *t)
 {
@@ -53,7 +51,7 @@ int consume(int code){
 int expr(), arrayDecl();
 
 // typeBase: INT | DOUBLE | CHAR | STRUCT ID ;
-int typeBase(){
+int typeBase(Type *ret){
     if(consume(INT)){
         ret->typeBase=TB_INT;
         return 1;
@@ -68,6 +66,7 @@ int typeBase(){
     }
     if(consume(STRUCT)){
         if(consume(ID)){
+            Token *tkName = consumedTk;
             Symbol      *s=findSymbol(&symbols,tkName->text);
             if(s==NULL)tkerr(crtTk,"undefined symbol: %s",tkName->text);
             if(s->cls!=CLS_STRUCT)tkerr(crtTk,"%s is not a struct",tkName->text);
@@ -80,9 +79,9 @@ int typeBase(){
 }
 
 // typeName: typeBase arrayDecl? 
-int typeName(){
-    if(!typeBase()) return 0;
-    if(arrayDecl()){
+int typeName(Type *ret){
+    if(!typeBase(ret)) return 0;
+    if(arrayDecl(ret)){
     }
     else{
         ret->nElements=-1;
@@ -165,8 +164,9 @@ int exprUnary(){
 
 // exprCast: LPAR typeName RPAR exprCast | exprUnary ;
 int exprCast(){
+    Type t;
     if(consume(LPAR)){ 
-        if(!typeName()) return 0;
+        if(!typeName(&t)) return 0;
         if(!consume(RPAR)) return 0;
         if(!exprCast()) return 0;
     }
@@ -328,7 +328,7 @@ int expr(){
 }
 
 // arrayDecl: LBRACKET expr? RBRACKET ;
-int arrayDecl(){
+int arrayDecl(Type *ret){
     if(!consume(LBRACKET))return 0;
     if(expr()){
         ret->nElements=0; 
@@ -451,9 +451,12 @@ int stmCompound(){
 // funcArg: typeBase ID arrayDecl? ;
 
 int funcArg(){
-    if(!typeBase()) return 0;
+    Type t;
+    Token *tkName;
+    if(!typeBase(&t)) return 0;
     if(!consume(ID)) tkerr(crtTk,"missing argument ID or syntax error");
-    if(arrayDecl()){
+    tkName = consumedTk;
+    if(arrayDecl(&t)){
     }
     else{
         t.nElements=-1; 
@@ -472,14 +475,12 @@ int funcArg(){
                         stmCompound ;
 */
 
-int check;
-
 int declFunc(){
-    check = 0;
-
-    if(typeBase()){
+    Token *startTk = crtTk;
+    Token *tkName;
+    Type t;
+    if(typeBase(&t)){
         if(consume(MUL)){
-            check = -1;
             t.nElements=0;
         }
         else{
@@ -492,9 +493,11 @@ int declFunc(){
     else return 0;
     if(!consume(ID)) 
         return 0;
-    else check++;
-    if(!consume(LPAR)) return 0;
-
+    tkName = consumedTk;
+    if(!consume(LPAR)){
+        crtTk = startTk;
+        return 0;
+    }
     if(findSymbol(&symbols,tkName->text))
         tkerr(crtTk,"symbol redefinition: %s",tkName->text);
     crtFunc=addSymbol(&symbols,tkName->text,CLS_FUNC);
@@ -512,7 +515,6 @@ int declFunc(){
     }
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after function declaration");
     crtDepth--;
-    check = 0;
     if(!stmCompound()) tkerr(crtTk,"expected statement in function");
     
     deleteSymbolsAfter(&symbols,crtFunc);
@@ -523,10 +525,12 @@ int declFunc(){
 
 // declVar:  typeBase ID arrayDecl? ( COMMA ID arrayDecl? )* SEMICOLON ;
 int declVar(){
-    if(!typeBase() && !check)return 0;
-    if(!consume(ID) && !check) tkerr(crtTk, "expected variable name");
-    check = 0;
-    if(arrayDecl()){
+    Token *tkName;
+    Type t;
+    if(!typeBase(&t))return 0;
+    if(!consume(ID)) tkerr(crtTk, "expected variable name");
+    tkName = consumedTk;
+    if(arrayDecl(&t)){
     }
     else{
         t.nElements=-1;
@@ -535,7 +539,8 @@ int declVar(){
     while(1){
         if(consume(COMMA)){
             if(consume(ID)){
-                if(arrayDecl()){
+                tkName = consumedTk;
+                if(arrayDecl(&t)){
                 }
                 else{
                     t.nElements=-1;
@@ -554,6 +559,7 @@ int declStruct(){
     Token *startTk = crtTk;
     if(!consume(STRUCT)) return 0;
     if(!consume(ID)) tkerr(crtTk,"expected struct ID");
+    Token *tkName = consumedTk;
     if(!consume(LACC)) {crtTk = startTk; return 0;};
 
     if(findSymbol(&symbols,tkName->text))
@@ -562,7 +568,6 @@ int declStruct(){
         initSymbols(&crtStruct->members);
 
     while(1){
-        check = 0;
         if(declVar()){
         }
         else break;
