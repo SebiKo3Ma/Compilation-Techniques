@@ -76,6 +76,7 @@ Symbol *findSymbol(Symbols *symbols, const char *name)
 		return NULL;
 	}
 
+
 void deleteSymbolsAfter(Symbols *symbols, Symbol *start)
 	{
 		int pos, i;
@@ -90,11 +91,14 @@ void deleteSymbolsAfter(Symbols *symbols, Symbol *start)
 			}
 		}
 
-		printf("[debug]: deleteSymbolsAfter() = %d, n = %d\n", pos, n);
+		//printf("[debug]: deleteSymbolsAfter() = %d, n = %d\n", pos, n);
 
+        symbols->end = symbols->begin + pos + 1;
+        Symbol *temp;
 		for (i = pos + 1; i < n; i++)
 		{
-			//free(symbols->begin[i]);
+            temp = *(symbols->begin + i);
+			free(temp);
 			//symbols->begin[i] = NULL;
 		}
 	}
