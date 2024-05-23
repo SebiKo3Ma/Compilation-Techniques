@@ -9,6 +9,7 @@
 #include "lexer.h"
 #include "utils.h"
 #include "domain.h"
+#include "types.h"
 
 Token *consumedTk, *crtTk;
 
@@ -97,32 +98,83 @@ exprPrimary: ID ( LPAR ( expr ( COMMA expr )* )? RPAR )?
            | CT_STRING 
            | LPAR expr RPAR ;
 */
-int exprPrimary(){
+int exprPrimary(RetVal *rv){
+    Token *tkName;
+    RetVal *arg;
     if(consume(ID)){
+        tkName = consumedTk;
+        Symbol *s=findSymbol(&symbols,tkName->text);
+        if(!s)tkerr(crtTk,"undefined symbol %s",tkName->text);
+        rv->type=s->type;
+        rv->isCtVal=0;
+        rv->isLVal=1;
+
         if(consume(LPAR)){
+            Symbol **crtDefArg=s->args.begin;
+            if(s->cls!=CLS_FUNC&&s->cls!=CLS_EXTFUNC)
+                tkerr(crtTk,"call of the non-function %s",tkName->text);
+
             if(!consume(RPAR)){
-                if(expr()){
+                if(expr(&arg)){
+                    if(crtDefArg==s->args.end)tkerr(crtTk,"too many arguments in call");
+                    cast(&(*crtDefArg)->type,&arg->type);
+                    crtDefArg++;
+
                     while(1){
                         if(consume(COMMA)){
-                            if(!expr()) tkerr(crtTk, "expected expression after ,");
+                            if(!expr(&arg)) tkerr(crtTk, "expected expression after ,");
+                            else{
+                                if(crtDefArg==s->args.end)
+                                    tkerr(crtTk,"too many arguments in call");
+                                cast(&(*crtDefArg)->type,&arg->type);
+                                crtDefArg++;
+                            }
                         }
                         else break;
                     }
                 }
                 if(!consume(RPAR)) tkerr(crtTk, "expected )");
+                else{
+                    if(crtDefArg!=s->args.end)
+                        tkerr(crtTk,"too few arguments in call");
+                    rv->type=s->type;
+                    rv->isCtVal=rv->isLVal=0;
+                }
             }
+            if(s->cls==CLS_FUNC||s->cls==CLS_EXTFUNC)
+                tkerr(crtTk,"missing call for function %s",tkName->text);
         }
     }
     else if(consume(CT_INT)){
+        Token *tki = consumedTk;
+        rv->type=createType(TB_INT,-1);
+        rv->ctVal.i=tki->i;
+        rv->isCtVal=1;
+        rv->isLVal=0;
     }
     else if(consume(CT_REAL)){
+        Token *tkr = consumedTk;
+        rv->type=createType(TB_DOUBLE,-1);
+        rv->ctVal.d=tkr->r;
+        rv->isCtVal=1;
+        rv->isLVal=0;
     }
     else if(consume(CT_CHAR)){
+        Token *tkc = consumedTk;
+        rv->type=createType(TB_CHAR,-1);
+        rv->ctVal.i=tkc->i;
+        rv->isCtVal=1;
+        rv->isLVal=0;
     }
     else if(consume(CT_STRING)){
+        Token *tks = consumedTk;
+        rv->type=createType(TB_CHAR,0);
+        rv->ctVal.str=tks->text;
+        rv->isCtVal=1;
+        rv->isLVal=0;
     }
     else if(consume(LPAR)){
-        if(!expr()) tkerr(crtTk, "Expected expression after (");
+        if(!expr(&rv)) tkerr(crtTk, "Expected expression after (");
         else if (!consume(RPAR)) tkerr(crtTk, "Expected ) after expression");
     }
     else return 0;
@@ -134,203 +186,349 @@ exprPostfix: exprPostfix LBRACKET expr RBRACKET
            | exprPostfix DOT ID 
            | exprPrimary ;
 */
-int exprPostfix1(){
+int exprPostfix1(RetVal *rv){
+    RetVal *rve;
+    Token *tkName;
     if(consume(LBRACKET)){
-        if(!expr()) tkerr(crtTk, "Expected expression after [");
+        if(!expr(&rve)) tkerr(crtTk, "Expected expression after [");
+        if(rv->type.nElements<0)tkerr(crtTk,"only an array can be indexed");
+            Type typeInt=createType(TB_INT,-1);
+            cast(&typeInt,&rve->type);
+            rv->type=rv->type;
+            rv->type.nElements=-1;
+            rv->isLVal=1;
+            rv->isCtVal=0;
         if(!consume(RBRACKET)) tkerr(crtTk, "Expected ] after expression");
     }
     else if(consume(DOT)){
         if(!consume(ID)) tkerr(crtTk, "Expected ID after .");
+        tkName = consumedTk;
+        Symbol      *sStruct=rv->type.s;
+        Symbol      *sMember=findSymbol(&sStruct->members,tkName->text);
+        if(!sMember)
+            tkerr(crtTk,"struct %s does not have a member %s",sStruct->name,tkName->text);
+        rv->type=sMember->type;
+        rv->isLVal=1;
+        rv->isCtVal=0;
     }
     return 1;
 }
 
-int exprPostfix(){
-    if(!exprPrimary()) return 0;
-    if(!exprPostfix1()) return 0;
+int exprPostfix(RetVal *rv){
+    if(!exprPrimary(&rv)) return 0;
+    if(!exprPostfix1(&rv)) return 0;
     return 1;
 }
 
 // exprUnary: ( SUB | NOT ) exprUnary | exprPostfix ;
-int exprUnary(){
-    if(consume(SUB) || consume(NOT)){
-        if(!exprUnary()) tkerr(crtTk, "expected unary expression");
+int exprUnary(RetVal *rv){
+    if(consume(SUB)){
+        if(!exprUnary(&rv)) tkerr(crtTk, "expected unary expression");
+        else{
+            if(rv->type.nElements>=0)tkerr(crtTk,"unary '-' cannot be applied to an array");
+            if(rv->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"unary '-' cannot be applied to a struct");
+            rv->isCtVal=rv->isLVal=0;
+        }
     }
-    else if(exprPostfix()){
+    else if(consume(NOT)){
+        if(!exprUnary(&rv)) tkerr(crtTk, "expected unary expression");
+        else{
+            if(rv->type.typeBase==TB_STRUCT)tkerr(crtTk,"'!' cannot be applied to a struct");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+    }
+    else if(exprPostfix(&rv)){
     }
     else return 0;
     return 1;
 }
 
 // exprCast: LPAR typeName RPAR exprCast | exprUnary ;
-int exprCast(){
+int exprCast(RetVal *rv){
     Type t;
+    RetVal *rve;
     if(consume(LPAR)){ 
         if(!typeName(&t)) return 0;
         if(!consume(RPAR)) return 0;
-        if(!exprCast()) return 0;
+        if(!exprCast(&rve)) return 0;
+        else{
+            cast(&t,&rve->type);
+            rv->type=t;
+            rv->isCtVal=rv->isLVal=0;
+        }
     }
-    else if(exprUnary()){
+    else if(exprUnary(&rv)){
     }
     else return 0;
     return 1;
 }
 
 // exprMul: exprMul ( MUL | DIV ) exprCast | exprCast ;
-int exprMul1(){
+int exprMul1(RetVal *rv){
+    RetVal *rve;
     if(consume(MUL)){
-        if(!exprCast()) tkerr(crtTk, "expected expression after *");
-        if(exprMul1()){
+        if(!exprCast(&rve)) tkerr(crtTk, "expected expression after *");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be multiplied or divided");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                    tkerr(crtTk,"a structure cannot be multiplied or divided");
+            rv->type=getArithType(&rv->type,&rve->type);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprMul1(&rv)){
         }
     }
     else if(consume(DIV)){
-        if(!exprCast()) tkerr(crtTk, "expected expression after /");
-        if(exprMul1()){
+        if(!exprCast(&rve)) tkerr(crtTk, "expected expression after /");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be multiplied or divided");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                    tkerr(crtTk,"a structure cannot be multiplied or divided");
+            rv->type=getArithType(&rv->type,&rve->type);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprMul1(&rv)){
         }
     }
     return 1;
 }
 
-int exprMul(){
-    if(!exprCast()) return 0;
-    if(!exprMul1()) return 0;
+int exprMul(RetVal *rv){
+    if(!exprCast(&rv)) return 0;
+    if(!exprMul1(&rv)) return 0;
     return 1;
 }
 
 // exprAdd: exprAdd ( ADD | SUB ) exprMul | exprMul ;
-int exprAdd1(){
+int exprAdd1(RetVal *rv){
+    RetVal *rve;
     if(consume(ADD)){
-        if(!exprMul()) tkerr(crtTk, "expected expression after +");
-        if(exprAdd1()){
+        if(!exprMul(&rve)) tkerr(crtTk, "expected expression after +");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be added or subtracted");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                    tkerr(crtTk,"a structure cannot be added or subtracted");
+            rv->type=getArithType(&rv->type,&rve->type);
+            rv->isCtVal=rv->isLVal=0;        
+        }
+        if(exprAdd1(&rv)){
         }
     }
     else if(consume(SUB)){
-        if(!exprMul()) tkerr(crtTk, "expected expression after -");
-        if(exprAdd1()){
+        if(!exprMul(&rve)) tkerr(crtTk, "expected expression after -");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be added or subtracted");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                    tkerr(crtTk,"a structure cannot be added or subtracted");
+            rv->type=getArithType(&rv->type,&rve->type);
+            rv->isCtVal=rv->isLVal=0;        
+        }
+        if(exprAdd1(&rv)){
         }
     }
     return 1;
 }
 
-int exprAdd(){
-    if(!exprMul()) return 0;
-    if(!exprAdd1()) return 0;
+int exprAdd(RetVal *rv){
+    if(!exprMul(&rv)) return 0;
+    if(!exprAdd1(&rv)) return 0;
     return 1;
 }
 
 // exprRel: exprRel ( LESS | LESSEQ | GREATER | GREATEREQ ) exprAdd | exprAdd ;
-int exprRel1(){
+int exprRel1(RetVal *rv){
+    RetVal *rve;
     if(consume(LESS)){
-        if(!exprAdd()) tkerr(crtTk, "expected expression after <");
-            if(exprRel1()){
+        if(!exprAdd(&rve)) tkerr(crtTk, "expected expression after <");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be compared");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprRel1(&rv)){
         }
     }
     else if(consume(LESSEQ)){
-        if(!exprAdd()) tkerr(crtTk, "expected expression after <=");
-            if(exprRel1()){
+        if(!exprAdd(&rve)) tkerr(crtTk, "expected expression after <=");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be compared");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprRel1(&rv)){
         }
     }
     else if(consume(GREATER)){
-        if(!exprAdd()) tkerr(crtTk, "expected expression after >");
-            if(exprRel1()){
+        if(!exprAdd(&rve)) tkerr(crtTk, "expected expression after >");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be compared");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprRel1(&rv)){
         }
     }
     else if(consume(GREATEREQ)){
-        if(!exprAdd()) tkerr(crtTk, "expected expression after >=");
-            if(exprRel1()){
+        if(!exprAdd(&rve)) tkerr(crtTk, "expected expression after >=");
+        else{
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"an array cannot be compared");
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprRel1(&rv)){
         }
     }
     return 1;
 }
 
-int exprRel(){
-    if(!exprAdd()) return 0;
-    if(!exprRel1()) return 0;
+int exprRel(RetVal *rv){
+    if(!exprAdd(&rv)) return 0;
+    if(!exprRel1(&rv)) return 0;
     return 1;
 }
 
 
 //exprEq: exprEq ( EQUAL | NOTEQ ) exprRel | exprRel ;
-int exprEq1(){
+int exprEq1(RetVal *rv){
+    RetVal *rve;
     if(consume(EQUAL)){
-        if(!exprRel()) tkerr(crtTk, "expected expression after ==");
-            if(exprEq1()){
+        if(!exprRel(&rve)) tkerr(crtTk, "expected expression after ==");
+        else{
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprEq1(&rv)){
         }
     }
     else if(consume(NOTEQ)){
-        if(!exprRel()) tkerr(crtTk, "expected expression after !=");
-        if(exprEq1()){
+        if(!exprRel(&rv)) tkerr(crtTk, "expected expression after !=");
+        else{
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be compared");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprEq1(&rv)){
         }
     }
     return 1;
 }
 
-int exprEq(){
-    if(!exprRel()) return 0;
-    if(!exprEq1()) return 0;
+int exprEq(RetVal *rv){
+    if(!exprRel(&rv)) return 0;
+    if(!exprEq1(&rv)) return 0;
     return 1;
 }
 
 // exprAnd: exprAnd AND exprEq | exprEq ;
-int exprAnd1(){
+int exprAnd1(RetVal *rv){
+    RetVal *rve;
     if(consume(AND)){
-        if(!exprEq()) tkerr(crtTk, "expected expression after &&");
-        if(exprAnd1()){
+        if(!exprEq(&rve)) tkerr(crtTk, "expected expression after &&");
+        else{
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be logically tested");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprAnd1(&rv)){
         }       
     }
     return 1;
 }
 
-int exprAnd(){
-    if(!exprEq()) return 0;
-    if(!exprAnd1()) return 0;
+int exprAnd(RetVal *rv){
+    if(!exprEq(&rv)) return 0;
+    if(!exprAnd1(&rv)) return 0;
     return 1;
 }
 
 // exprOr: exprOr OR exprAnd | exprAnd ;
-int exprOr1(){
+int exprOr1(RetVal *rv){
+    RetVal *rve;
     if(consume(OR)){
-        if(!exprAnd()) tkerr(crtTk, "expected expression after ||");
-        if(exprOr1()){
+        if(!exprAnd(&rve)) tkerr(crtTk, "expected expression after ||");
+        else{
+            if(rv->type.typeBase==TB_STRUCT||rve->type.typeBase==TB_STRUCT)
+                tkerr(crtTk,"a structure cannot be logically tested");
+            rv->type=createType(TB_INT,-1);
+            rv->isCtVal=rv->isLVal=0;
+        }
+        if(exprOr1(&rv)){
         }
     }
     return 1;
 }
 
-int exprOr(){
-    if(!exprAnd()) return 0;
-    if(!exprOr1()) return 0; 
+int exprOr(RetVal *rv){
+    if(!exprAnd(&rv)) return 0;
+    if(!exprOr1(&rv)) return 0; 
     return 1;
 }
 
 //exprAssign: exprUnary ASSIGN exprAssign | exprOr ;
-int exprAssign(){
+int exprAssign(RetVal *rv){
     Token *startTk = crtTk;
-    if(exprUnary()) {
+    RetVal *rve;
+    if(exprUnary(&rv)) {
         if(consume(ASSIGN)){ 
-            if(!exprAssign()) tkerr(crtTk, "missing assign expression");
+            if(!exprAssign(&rve)) tkerr(crtTk, "missing assign expression");
+
+            if(!rv->isLVal)tkerr(crtTk,"cannot assign to a non-lval");
+            if(rv->type.nElements>-1||rve->type.nElements>-1)
+                tkerr(crtTk,"the arrays cannot be assigned");
+            cast(&rv->type,&rve->type);
+            rv->isCtVal=rv->isLVal=0;
         }
         //else tkerr(crtTk, "missing = in assign expression");
         else {
             crtTk = startTk;
         }
     }
-    if(exprOr()){
+    if(exprOr(&rv)){
     }
     else return 0;
     return 1;
 }
 
 // expr: exprAssign ;
-int expr(){
-    if(!exprAssign()) return 0;
+int expr(RetVal *rv){
+    if(!exprAssign(&rv)) return 0;
     return 1;
 }
 
 // arrayDecl: LBRACKET expr? RBRACKET ;
 int arrayDecl(Type *ret){
     if(!consume(LBRACKET))return 0;
-    if(expr()){
+    RetVal *rv;
+    if(expr(&rv)){
+        //ret->nElements=0; 
+
+        if(!rv->isCtVal)tkerr(crtTk,"the array size is not a constant");
+        if(rv->type.typeBase!=TB_INT)tkerr(crtTk,"the array size is not an integer");
+        ret->nElements=rv->ctVal.i;
+    }
+    else{
         ret->nElements=0; 
     }
     if(!consume(RBRACKET))tkerr(crtTk,"missing ] or syntax error"); 
@@ -349,9 +547,14 @@ stm: stmCompound
 int stm(), declVar(), stmCompound();
 
 int ruleIf(){
+    RetVal *rv;
     if(!consume(IF)) return 0;
     if(!consume(LPAR)) tkerr(crtTk,"expected ( after if");
-    if(!expr()) tkerr(crtTk,"expected expression in if condition");
+    if(!expr(&rv)) tkerr(crtTk,"expected expression in if condition");
+
+    if(rv->type.typeBase==TB_STRUCT)
+        tkerr(crtTk,"a structure cannot be logically tested");
+                
     if(!consume(RPAR)) tkerr(crtTk,"expected ) after expression");
     if(!stm()) tkerr(crtTk,"expected statement after if condition");
     if(consume(ELSE)){
@@ -362,24 +565,32 @@ int ruleIf(){
 
 int ruleWhile()
 {
+    RetVal *rv;
     if(!consume(WHILE))return 0;
     if(!consume(LPAR))tkerr(crtTk,"missing ( after while");
-    if(!expr())tkerr(crtTk,"invalid expression after (");
+    if(!expr(&rv))tkerr(crtTk,"invalid expression after (");
+
+    if(rv->type.typeBase==TB_STRUCT)
+        tkerr(crtTk,"a structure cannot be logically tested");
+
     if(!consume(RPAR))tkerr(crtTk,"missing )");
     if(!stm())tkerr(crtTk,"missing while statement");
     return 1;
 }
 
 int ruleFor(){
+    RetVal *rv1, *rv2, *rv3;
     if(!consume(FOR)) return 0;
     if(!consume(LPAR))tkerr(crtTk,"missing ( after for");
-    if(expr()){
+    if(expr(&rv1)){
     }
     if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after expr");
-    if(expr()){
+    if(expr(&rv2)){
+        if(rv2->type.typeBase==TB_STRUCT)
+            tkerr(crtTk,"a structure cannot be logically tested");
     }
     if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after expr");
-    if(expr()){
+    if(expr(&rv3)){
     }
     if(!consume(RPAR))tkerr(crtTk,"missing )");
     if(!stm())tkerr(crtTk,"missing for statement");
@@ -393,15 +604,20 @@ int ruleBreak(){
 }
 
 int ruleReturn(){
+    RetVal *rv;
     if(!consume(RETURN)) return 0;
-    if(expr()){
+    if(expr(&rv)){
+        if(crtFunc->type.typeBase==TB_VOID)
+            tkerr(crtTk,"a void function cannot return a value");
+        cast(&crtFunc->type,&rv->type);
     }
     if(!consume(SEMICOLON)) tkerr(crtTk,"missing ; after break");
     return 1;
 }
 
 int ruleExpr(){
-    if(expr()){
+    RetVal *rv;
+    if(expr(&rv)){
     }
     if(!consume(SEMICOLON)) return 0;
     return 1;
@@ -431,7 +647,7 @@ int stm(){
 // stmCompound: LACC ( declVar | stm )* RACC ; 
 
 int stmCompound(){
-    Symbol *start=symbols.end[-1];
+        Symbol *start=symbols.end[-1];
     if(!consume(LACC))return 0;
     crtDepth++;
     while(1){
