@@ -33,7 +33,8 @@ typedef struct _Symbol{
     Symbols members; // used only for structs
     };
 }Symbol;
-Symbols symbols;
+
+extern Symbols symbols;
 
 extern int crtDepth;
 

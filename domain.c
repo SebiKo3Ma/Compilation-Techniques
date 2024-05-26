@@ -12,6 +12,8 @@
 
 int crtDepth;
 
+Symbols symbols;
+
 void initSymbols(Symbols *symbols)
 {
     symbols->begin=NULL;

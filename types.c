@@ -78,6 +78,7 @@ int getPriority(Type *s){
         return 1;
     else if(s->typeBase == 'TB_FLOAT')
         return 2;
+    return -1;
 }
 
 Type getArithType(Type *s1,Type *s2){

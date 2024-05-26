@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "utils.h"
 #include "syntax.h"
+#include "types.h"
 
 bool readFile(char *infile){
     long length;
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]){
     }
     while(getNextToken() != END){} // lexical analysis
     //tempTestPrint(); // test print token list
+    addExtFuncs();
     crtTk = tokens;
     unit();
 }
