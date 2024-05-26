@@ -141,9 +141,10 @@ int exprPrimary(RetVal *rv){
                     rv->isCtVal=rv->isLVal=0;
                 }
             }
-            if(s->cls==CLS_FUNC||s->cls==CLS_EXTFUNC)
-                tkerr(crtTk,"missing call for function %s",tkName->text);
+            
         }
+        else if(s->cls==CLS_FUNC||s->cls==CLS_EXTFUNC)
+                tkerr(crtTk,"missing call for function %s",tkName->text);
     }
     else if(consume(CT_INT)){
         Token *tki = consumedTk;

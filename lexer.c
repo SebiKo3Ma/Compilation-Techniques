@@ -126,7 +126,7 @@ int getNextToken()
                     pCrtCh++;
                 }
                 else if(ch==0){ // the end of the input string
-                    if(isdigit(ch)) printf("True\n");
+                   // if(isdigit(ch)) printf("True\n");
                     addTk(END);
                     return END;
                 }
@@ -291,7 +291,7 @@ int getNextToken()
                 }
                 break;
             case 6:
-                printf("%c", ch);
+                //printf("%c", ch);
                 if(strchr(hex, ch)){
                     pCrtCh++;
                     state = 7;
@@ -299,7 +299,7 @@ int getNextToken()
                 else tkerr(addTk(END),"invalid character ");
                 break;
             case 7:
-                printf("%c", ch);
+                //printf("%c", ch);
                 if(strchr(hex, ch)) pCrtCh++;
                 else{
                     state = 4;
