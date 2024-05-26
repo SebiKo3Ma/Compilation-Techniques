@@ -93,11 +93,11 @@ void addExtFuncs(){
 }
 
 int getPriority(Type *s){
-    if(s->typeBase == 'TB_CHAR')
+    if(s->typeBase == TB_CHAR)
         return 0;
-    else if(s->typeBase == 'TB_INT')
+    else if(s->typeBase == TB_INT)
         return 1;
-    else if(s->typeBase == 'TB_DOUBLE')
+    else if(s->typeBase == TB_DOUBLE)
         return 2;
     return -1;
 }
