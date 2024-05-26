@@ -504,9 +504,10 @@ int exprAssign(RetVal *rv){
         //else tkerr(crtTk, "missing = in assign expression");
         else {
             crtTk = startTk;
+            if(exprOr(rv)){}
         }
     }
-    if(exprOr(rv)){
+    else if(exprOr(rv)){
     }
     else return 0;
     return 1;
