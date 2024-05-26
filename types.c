@@ -71,7 +71,17 @@ void addExtFuncs(){
     addFuncArg(s,"s",createType(TB_CHAR,0));
 }
 
-Type getArithType(Type *s1,Type *s2){
+int getPriority(Type *s){
+    if(s->typeBase == 'TB_CHAR')
+        return 0;
+    else if(s->typeBase == 'TB_INT')
+        return 1;
+    else if(s->typeBase == 'TB_FLOAT')
+        return 2;
+}
 
-    return *s1;
+Type getArithType(Type *s1,Type *s2){
+    if(s1->typeBase == s2->typeBase)
+        return *s1;
+    else return (getPriority(s1) > getPriority(s2)) ? * s1 : *s2; 
 }
