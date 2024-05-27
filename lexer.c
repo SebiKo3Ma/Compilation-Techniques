@@ -577,7 +577,7 @@ int getNextToken()
                 if(ch == '/'){
                     pCrtCh++;
                     state = 53;
-                    //line++;
+                    line++;
                 }
                 else if(ch == '*'){
                     pCrtCh++;
