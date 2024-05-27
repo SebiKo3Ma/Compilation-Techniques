@@ -101,6 +101,26 @@ char *createString(const char *pStartCh, const char *pEndCh){
     return new_string;
 }
 
+char *escapeString(char *string) {
+    int len = strlen(string);
+    char *newString = (char *)malloc(len + 1); // Allocate memory for the new string
+    if (!newString) {
+        return NULL; // Handle allocation failure
+    }
+    int i = 0, j = 0;
+
+    while (i < len) {
+        if (string[i] == '\\') {
+            i++; // Skip the backslash
+            if (i >= len) break; // Avoid out-of-bounds access if backslash is the last character
+        }
+        newString[j++] = string[i++];
+    }
+    newString[j] = '\0'; // Null-terminate the new string
+
+    return newString;
+}
+
 int getNextToken()
 {
     int state=0,nCh;
@@ -398,7 +418,7 @@ int getNextToken()
                     pCrtCh++;
                     state = 21;
                 }
-                else if(ch != '\''){
+                else if(ch != '\"'){
                     if(ch == '\n'){
                         line++;
                     }
@@ -432,7 +452,14 @@ int getNextToken()
                 break;
             case 22:
                 tk = addTk(CT_STRING);
-                tk -> text = createString(pStartCh, pCrtCh);
+
+                char *string = createString(pStartCh, pCrtCh);
+                char *escaped = escapeString(string);
+
+                printf("Original: %s\n", string);
+                printf("Escaped: %s\n", escaped);
+                tk -> text = escaped;
+
                 pCrtCh++;
                 return tk->code;
             case 23:
