@@ -29,8 +29,12 @@ typedef struct _Symbol{
     Type type;
     int depth; // 0-global, 1-in function, 2... - nested blocks in function
     union{
-    Symbols args; // used only of functions
-    Symbols members; // used only for structs
+        Symbols args; // used only of functions
+        Symbols members; // used only for structs
+    };
+    union{
+        void *addr; // vm: the memory address for global symbols
+        int offset; // vm: the stack offset for local symbols
     };
 }Symbol;
 

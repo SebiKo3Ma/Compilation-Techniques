@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "syntax.h"
 #include "types.h"
+#include "vm.h"
 
 bool readFile(char *infile){
     long length;
@@ -42,4 +43,5 @@ int main(int argc, char *argv[]){
     addExtFuncs();
     crtTk = tokens;
     unit();
+    run(instructions);
 }

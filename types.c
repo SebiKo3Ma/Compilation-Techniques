@@ -51,9 +51,10 @@ void cast(Type *dst,Type *src){
     tkerr(crtTk,"incompatible types");
 }
 
-Symbol *addExtFunc(const char *name,Type type){
+Symbol *addExtFunc(const char *name,Type type, void* addr){
     Symbol *s=addSymbol(&symbols,name,CLS_EXTFUNC);
     s->type=type;
+    s->addr=addr;
     initSymbols(&s->args);
     return s;
 }
@@ -64,31 +65,41 @@ Symbol *addFuncArg(Symbol *func,const char *name,Type type){
     return a;
 }
 
+void put_i(){
+    printf("#%ld\n",popi());
+}
+
+void put_d(){
+    printf("#%f\n",popd());
+}
+
 void addExtFuncs(){
-    Symbol *s;
+    Symbol *s, *a;
 
-    s=addExtFunc("put_s",createType(TB_VOID,-1));
-    addFuncArg(s,"s",createType(TB_CHAR,0));
+    // s=addExtFunc("put_s",createType(TB_VOID,-1));
+    // addFuncArg(s,"s",createType(TB_CHAR,0));
 
-    s=addExtFunc("get_s",createType(TB_VOID,-1));
-    addFuncArg(s,"s",createType(TB_CHAR,0));
+    // s=addExtFunc("get_s",createType(TB_VOID,-1));
+    // addFuncArg(s,"s",createType(TB_CHAR,0));
 
-    s=addExtFunc("put_i",createType(TB_VOID,-1));
-    addFuncArg(s,"i",createType(TB_INT,-1));
+    s=addExtFunc("put_i",createType(TB_VOID,-1),put_i);
+    a=addSymbol(&s->args,"i",CLS_VAR);
+    a->type=createType(TB_INT,-1);
 
-    s=addExtFunc("get_i",createType(TB_INT,-1));
+    // s=addExtFunc("get_i",createType(TB_INT,-1), get_i);
 
-    s=addExtFunc("put_d",createType(TB_VOID,-1));
-    addFuncArg(s,"d",createType(TB_DOUBLE,-1));
+    s=addExtFunc("put_d",createType(TB_VOID,-1), put_d);
+    a=addSymbol(&s->args,"d",CLS_VAR);
+    a->type=createType(TB_DOUBLE,-1);
 
-    s=addExtFunc("get_d",createType(TB_DOUBLE,-1));
+    // s=addExtFunc("get_d",createType(TB_DOUBLE,-1));
 
-    s=addExtFunc("put_c",createType(TB_VOID,-1));
-    addFuncArg(s,"c",createType(TB_CHAR,-1));
+    // s=addExtFunc("put_c",createType(TB_VOID,-1));
+    // addFuncArg(s,"c",createType(TB_CHAR,-1));
 
-    s=addExtFunc("get_c",createType(TB_CHAR,-1));
+    // s=addExtFunc("get_c",createType(TB_CHAR,-1));
     
-    s=addExtFunc("seconds",createType(TB_DOUBLE,-1));
+    // s=addExtFunc("seconds",createType(TB_DOUBLE,-1));
 
 }
 

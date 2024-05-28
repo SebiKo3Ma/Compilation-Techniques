@@ -455,9 +455,6 @@ int getNextToken()
 
                 char *string = createString(pStartCh, pCrtCh);
                 char *escaped = escapeString(string);
-
-                printf("Original: %s\n", string);
-                printf("Escaped: %s\n", escaped);
                 tk -> text = escaped;
 
                 pCrtCh++;
